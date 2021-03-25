@@ -14,6 +14,7 @@ var vectorSource = new VectorSource();
 var vector = new VectorLayer({
     source: vectorSource,
 });
+filterFeatures();
 
 // basemap
 var raster = new TileLayer({
@@ -38,16 +39,19 @@ var map = new Map({
     }),
 });
 
-function filterFeatures(filter){
+function filterFeatures(filter=null){
     // generate a GetFeature request
-    var featureRequest = new WFS().writeGetFeature({
+    var featureBody = {
         srsName: 'EPSG:3857',
         featureNS: 'http://openstreemap.org',
         featurePrefix: 'incore',
-        featureTypes: ['5f9091df3e86721ed82f701d'],
+        featureTypes: ['5f9091df3e86721ed82f701d'], // joplin subset
         outputFormat: 'application/json',
-        filter: filter
-    });
+    }
+
+    if (filter !== null) featureBody['filter'] = filter;
+
+    var featureRequest = new WFS().writeGetFeature(featureBody);
 
     // then post the request and add the received features to a layer
     fetch('https://incore-dev.ncsa.illinois.edu/geoserver/incore/ows', {
