@@ -65,7 +65,7 @@ function filterFeatures(filter=null){
             var features = new GeoJSON().readFeatures(json);
             vectorSource.clear();
             vectorSource.addFeatures(features);
-            // map.getView().fit(vectorSource.getExtent());
+            map.getView().fit(vectorSource.getExtent());
         });
 }
 
