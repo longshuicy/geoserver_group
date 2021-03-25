@@ -6,19 +6,13 @@ import View from 'ol/View';
 import {ATTRIBUTION as OSM_ATTRIBUTION} from "ol/source/OSM";
 import XYZ from 'ol/source/XYZ';
 import {GeoJSON, WFS} from 'ol/format';
-import {Stroke, Style} from 'ol/style';
 import {Tile as TileLayer, Vector as VectorLayer} from 'ol/layer';
-import {and as andFilter, equalTo as equalToFilter, like as likeFilter,} from 'ol/format/filter';
+import {and, equalTo} from 'ol/format/filter';
 
+// vectormap
 var vectorSource = new VectorSource();
 var vector = new VectorLayer({
     source: vectorSource,
-    style: new Style({
-        stroke: new Stroke({
-            color: 'rgba(0, 0, 255, 1.0)',
-            width: 2,
-        }),
-    }),
 });
 
 // basemap
@@ -44,29 +38,57 @@ var map = new Map({
     }),
 });
 
-// generate a GetFeature request
-var featureRequest = new WFS().writeGetFeature({
-    srsName: 'EPSG:3857',
-    featureNS: 'http://openstreemap.org',
-    featurePrefix: 'osm',
-    featureTypes: ['water_areas'],
-    outputFormat: 'application/json',
-    filter: andFilter(
-        likeFilter('name', 'Mississippi*'),
-        equalToFilter('waterway', 'riverbank')
-    ),
-});
-
-// then post the request and add the received features to a layer
-fetch('https://incore-dev.ncsa.illinois.edu/geoserver/incore/ows', {
-    method: 'POST',
-    body: new XMLSerializer().serializeToString(featureRequest),
-})
-    .then(function (response) {
-        return response.json();
-    })
-    .then(function (json) {
-        var features = new GeoJSON().readFeatures(json);
-        vectorSource.addFeatures(features);
-        map.getView().fit(vectorSource.getExtent());
+function filterFeatures(filter){
+    // generate a GetFeature request
+    var featureRequest = new WFS().writeGetFeature({
+        srsName: 'EPSG:3857',
+        featureNS: 'http://openstreemap.org',
+        featurePrefix: 'incore',
+        featureTypes: ['5f9091df3e86721ed82f701d'],
+        outputFormat: 'application/json',
+        filter: filter
     });
+
+    // then post the request and add the received features to a layer
+    fetch('https://incore-dev.ncsa.illinois.edu/geoserver/incore/ows', {
+        method: 'POST',
+        body: new XMLSerializer().serializeToString(featureRequest),
+    })
+        .then(function (response) {
+            return response.json();
+        })
+        .then(function (json) {
+            var features = new GeoJSON().readFeatures(json);
+            vectorSource.clear();
+            vectorSource.addFeatures(features);
+            // map.getView().fit(vectorSource.getExtent());
+        });
+}
+
+
+var archetypeSelect = document.getElementById("archetype");
+archetypeSelect.onchange = function(){
+    if (yearBuiltSelect.value !== "select"){
+        var filter = and(
+            equalTo("archetype", archetypeSelect.value),
+            equalTo("year_built", yearBuiltSelect.value));
+    }
+    else{
+        var filter = equalTo("archetype", archetypeSelect.value);
+    }
+
+    filterFeatures(filter);
+}
+
+var yearBuiltSelect = document.getElementById(("yearbuilt"));
+yearBuiltSelect.onchange = function(){
+    if (archetypeSelect.value !== "select"){
+        var filter = and(
+            equalTo("archetype", archetypeSelect.value),
+            equalTo("year_built", yearBuiltSelect.value));
+    }
+    else{
+        var filter = equalTo("year_built", yearBuiltSelect.value);
+    }
+    filterFeatures(filter);
+}

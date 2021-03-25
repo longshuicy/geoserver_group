@@ -10,6 +10,7 @@
     ],
     // Allow JavaScript files to be compiled
     "allowJs": true,
+    "checkJs": false,
     // Skip type checking of all declaration files
     "skipLibCheck": true,
     // Disables namespace imports (import * as fs from "fs") and enables CJS/AMD/UMD style imports (import fs from "fs")
