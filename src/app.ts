@@ -1,43 +1,72 @@
-import { sum } from './utils/math';
+import 'ol/ol.css';
+import Map from 'ol/Map';
+import VectorSource from 'ol/source/Vector';
+import {fromLonLat} from "ol/proj";
+import View from 'ol/View';
+import {ATTRIBUTION as OSM_ATTRIBUTION} from "ol/source/OSM";
+import XYZ from 'ol/source/XYZ';
+import {GeoJSON, WFS} from 'ol/format';
+import {Stroke, Style} from 'ol/style';
+import {Tile as TileLayer, Vector as VectorLayer} from 'ol/layer';
+import {and as andFilter, equalTo as equalToFilter, like as likeFilter,} from 'ol/format/filter';
 
-const container = document.createElement('div');
-document.querySelector('body')?.appendChild(container);
+var vectorSource = new VectorSource();
+var vector = new VectorLayer({
+    source: vectorSource,
+    style: new Style({
+        stroke: new Stroke({
+            color: 'rgba(0, 0, 255, 1.0)',
+            width: 2,
+        }),
+    }),
+});
 
-// Output
-const output = document.createElement('div');
-output.innerHTML = 'Sum: ...';
-output.classList.add('output');
-container.appendChild(output);
+// basemap
+var raster = new TileLayer({
+    source: new XYZ({
+        url: "https://{a-d}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png",
+        attributions: [
+            "&#169; <a href=\"https://www.carto.com\">Carto</a>,",
+            OSM_ATTRIBUTION
+        ],
+        maxZoom: 20,
+    }),
+});
 
-// Inputs
-const inputsContainer = document.createElement('div');
-inputsContainer.classList.add('inputs');
-container.appendChild(inputsContainer);
+var map = new Map({
+    layers: [raster, vector],
+    target: document.getElementById('map'),
+    view: new View({
+        projection: "EPSG:3857",
+        center: fromLonLat([-94.4980, 37.0672]),
+        maxZoom: 19,
+        zoom: 12,
+    }),
+});
 
-const inputFactory = () => {
-    const input = document.createElement('input');
-    input.classList.add('input');
-    input.type = 'number';
-    input.placeholder = 'Enter a number';
-    input.addEventListener('change', () => {
-        const values: number[] = [];
-        document.querySelectorAll<HTMLInputElement>('.input').forEach((inp) => {
-            const value = parseFloat(inp.value);
-            if (Number.isFinite(value)) {
-                values.push(value);
-            }
-        });
-        output.innerHTML = `Sum: ${sum(values)}`;
+// generate a GetFeature request
+var featureRequest = new WFS().writeGetFeature({
+    srsName: 'EPSG:3857',
+    featureNS: 'http://openstreemap.org',
+    featurePrefix: 'osm',
+    featureTypes: ['water_areas'],
+    outputFormat: 'application/json',
+    filter: andFilter(
+        likeFilter('name', 'Mississippi*'),
+        equalToFilter('waterway', 'riverbank')
+    ),
+});
+
+// then post the request and add the received features to a layer
+fetch('https://incore-dev.ncsa.illinois.edu/geoserver/incore/ows', {
+    method: 'POST',
+    body: new XMLSerializer().serializeToString(featureRequest),
+})
+    .then(function (response) {
+        return response.json();
+    })
+    .then(function (json) {
+        var features = new GeoJSON().readFeatures(json);
+        vectorSource.addFeatures(features);
+        map.getView().fit(vectorSource.getExtent());
     });
-    return input;
-};
-
-// Add button
-const addInputButton = document.createElement('button');
-addInputButton.innerHTML = 'Add input';
-addInputButton.addEventListener('click', () => inputsContainer.appendChild(inputFactory()));
-container.insertBefore(addInputButton, inputsContainer);
-
-// Start with two inputs
-inputsContainer.appendChild(inputFactory());
-inputsContainer.appendChild(inputFactory());
